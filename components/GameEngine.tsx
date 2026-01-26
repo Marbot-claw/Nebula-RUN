@@ -38,6 +38,7 @@ export const GameEngine: React.FC = () => {
   const obstaclesRef = useRef<Obstacle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const collectiblesRef = useRef<Collectible[]>([]);
+  const trailRef = useRef<Vector[]>([]); // Store previous positions
   const frameCountRef = useRef(0);
 
   // Initialize/Reset Game
@@ -55,6 +56,7 @@ export const GameEngine: React.FC = () => {
     obstaclesRef.current = [];
     particlesRef.current = [];
     collectiblesRef.current = [];
+    trailRef.current = [];
     frameCountRef.current = 0;
     scoreRef.current = 0;
     shakeRef.current = 0;
@@ -179,6 +181,21 @@ export const GameEngine: React.FC = () => {
 
     // 3. Obstacle & Collectible Management
     const effectiveSpeed = GAME_SPEED_BASE * config.speedMod;
+
+    // Update Trail
+    // Move existing points backwards to simulate forward movement
+    for (let i = 0; i < trailRef.current.length; i++) {
+        trailRef.current[i].x -= effectiveSpeed;
+    }
+    // Add current player position to head of trail
+    trailRef.current.unshift({ x: canvas.width / 3, y: player.y });
+    
+    // Limit trail length based on stage/speed
+    // Increased trail length for better visual feedback (previously 20/15/10)
+    const maxTrailLength = player.stage === EvolutionStage.TURBO ? 40 : (player.stage === EvolutionStage.AERO ? 30 : 20);
+    if (trailRef.current.length > maxTrailLength) {
+        trailRef.current.pop();
+    }
     
     // Spawn Logic
     const lastObstacle = obstaclesRef.current.length > 0 ? obstaclesRef.current[obstaclesRef.current.length - 1] : null;
@@ -460,6 +477,45 @@ export const GameEngine: React.FC = () => {
       }
       ctx.restore();
     });
+
+    // Draw Trail
+    const trail = trailRef.current;
+    if (trail.length > 1) {
+       ctx.save();
+       // Trail styling based on stage
+       if (stage === EvolutionStage.TURBO) {
+           ctx.shadowBlur = 15;
+           ctx.shadowColor = '#f97316';
+       } else if (stage === EvolutionStage.AERO) {
+           ctx.shadowBlur = 5;
+           ctx.shadowColor = '#10b981';
+       }
+
+       for (let i = 0; i < trail.length - 1; i++) {
+           const point = trail[i];
+           const nextPoint = trail[i+1];
+           
+           // Calculate opacity based on index (head is index 0, tail is last)
+           // Reverse index logic for opacity: 0 is opaque (start), length is transparent
+           // Actually, since we unshift, index 0 is the HEAD (Player).
+           const pct = 1 - (i / trail.length);
+           
+           ctx.beginPath();
+           ctx.moveTo(point.x, point.y);
+           ctx.lineTo(nextPoint.x, nextPoint.y);
+
+           const config = EVO_CONFIG[playerRef.current.stage];
+           ctx.strokeStyle = config.color;
+           // Tapering width
+           ctx.lineWidth = (playerRef.current.radius * 0.8) * pct;
+           // Fading opacity
+           ctx.globalAlpha = pct * 0.6;
+           
+           ctx.lineCap = 'round';
+           ctx.stroke();
+       }
+       ctx.restore();
+    }
 
     // Draw Particles
     particlesRef.current.forEach(p => {
