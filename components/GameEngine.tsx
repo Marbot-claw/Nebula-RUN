@@ -653,12 +653,9 @@ export const GameEngine: React.FC = () => {
   // Window Resize
   useEffect(() => {
     const handleResize = () => {
-      // Mobile-ish dimensions
-      const MAX_W = 480;
-      const MAX_H = 850; 
-      
-      const width = Math.min(window.innerWidth, MAX_W);
-      const height = Math.min(window.innerHeight, MAX_H);
+      // Full screen responsiveness
+      const width = window.innerWidth;
+      const height = window.innerHeight;
       
       setDimensions({ width, height });
 
@@ -683,7 +680,7 @@ export const GameEngine: React.FC = () => {
   return (
     <div className="w-full h-screen bg-slate-950 flex items-center justify-center overflow-hidden font-sans">
       <div 
-        className="relative overflow-hidden shadow-2xl bg-slate-900 border-x-2 border-slate-800"
+        className="relative overflow-hidden shadow-2xl bg-slate-900"
         style={{ width: dimensions.width, height: dimensions.height }}
       >
         <canvas 
@@ -693,14 +690,14 @@ export const GameEngine: React.FC = () => {
         />
 
         {/* HUD */}
-        <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none">
-          <div className="bg-black/40 backdrop-blur-md px-8 py-2 rounded-full border border-white/10 text-white text-4xl font-bold shadow-lg flex items-center gap-4">
+        <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none z-10">
+          <div className="bg-black/30 backdrop-blur-md px-6 py-1 rounded-full border border-white/10 text-white text-2xl font-bold shadow-lg flex items-center gap-4">
             <span>{score}</span>
           </div>
         </div>
 
-        <div className="absolute top-6 right-6 pointer-events-none">
-          <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-medium">
+        <div className="absolute top-4 right-4 pointer-events-none z-10">
+          <div className="bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-xs font-medium">
              Evo: <span style={{ color: EVO_CONFIG[currentStage].color }}>{EVO_CONFIG[currentStage].name}</span>
           </div>
         </div>
@@ -708,14 +705,14 @@ export const GameEngine: React.FC = () => {
         {/* Mute Button */}
         <button 
           onClick={handleMuteToggle}
-          className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 z-50 transition-colors"
+          className="absolute top-4 left-4 p-1.5 bg-black/30 backdrop-blur-md rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 z-50 transition-colors"
         >
-          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </button>
 
         {/* Start Screen */}
         {gameState === GameState.START && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-20">
             <div className="text-center p-8 max-w-md w-full">
               <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-4 tracking-tight">
                 NEBULA RUN
@@ -743,6 +740,17 @@ export const GameEngine: React.FC = () => {
               </div>
               <button 
                 onClick={() => {
+                   // Request Fullscreen
+                   try {
+                     if (document.documentElement.requestFullscreen) {
+                       document.documentElement.requestFullscreen();
+                     } else if ((document.documentElement as any).webkitRequestFullscreen) {
+                       (document.documentElement as any).webkitRequestFullscreen();
+                     }
+                   } catch (e) {
+                     console.log("Fullscreen request failed", e);
+                   }
+
                    resetGame();
                    initAudio();
                    setGameState(GameState.PLAYING);
@@ -760,7 +768,7 @@ export const GameEngine: React.FC = () => {
 
         {/* Game Over Screen */}
         {gameState === GameState.GAME_OVER && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 z-20">
             <div className="bg-[#0f172a] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500"></div>
 
