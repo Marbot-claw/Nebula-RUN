@@ -181,14 +181,43 @@ export const GameEngine: React.FC = () => {
     const effectiveSpeed = GAME_SPEED_BASE * config.speedMod;
     
     // Spawn Logic
-    if (frameCountRef.current % Math.floor(OBSTACLE_SPAWN_RATE / config.speedMod) === 0) {
+    const lastObstacle = obstaclesRef.current.length > 0 ? obstaclesRef.current[obstaclesRef.current.length - 1] : null;
+    const spawnDistance = 320; // Fixed horizontal distance between pipes
+
+    if (!lastObstacle || (canvas.width - lastObstacle.x >= spawnDistance)) {
       // Spawn Pipe
-      const minGap = 150;
-      const maxGap = 250 - (scoreRef.current * 2);
-      const gapSize = Math.max(120, Math.random() * (maxGap - minGap) + minGap);
-      const gapTop = Math.random() * (canvas.height - gapSize - 100) + 50;
+      const minGap = 160;
+      const maxGap = 260 - (scoreRef.current * 1.5);
+      const gapSize = Math.max(130, Math.random() * (maxGap - minGap) + minGap);
       
-      const isMoving = scoreRef.current > 5 && Math.random() > 0.5;
+      let gapTop;
+      const safePadding = 80;
+      const minY = safePadding;
+      const maxY = canvas.height - gapSize - safePadding;
+
+      if (!lastObstacle) {
+         gapTop = (canvas.height - gapSize) / 2;
+      } else {
+         // Constrain vertical shift to make it possible to jump/fall to the next pipe
+         const maxShift = 280; // Pixels
+         const minShift = -280;
+         const shift = Math.random() * (maxShift - minShift) + minShift;
+         
+         const prevCenter = lastObstacle.gapTop + (lastObstacle.gapSize / 2);
+         let targetCenter = prevCenter + shift;
+
+         // Clamp center
+         const minCenter = minY + gapSize / 2;
+         const maxCenter = maxY + gapSize / 2;
+         targetCenter = Math.max(minCenter, Math.min(targetCenter, maxCenter));
+
+         gapTop = targetCenter - (gapSize / 2);
+      }
+      
+      // Safety Clamp
+      gapTop = Math.max(minY, Math.min(gapTop, maxY));
+      
+      const isMoving = scoreRef.current > 10 && Math.random() > 0.6; // Increased threshold for moving pipes
 
       obstaclesRef.current.push({
         id: frameCountRef.current,
@@ -198,32 +227,25 @@ export const GameEngine: React.FC = () => {
         gapSize,
         passed: false,
         isMoving,
-        moveSpeedY: isMoving ? (Math.random() > 0.5 ? 2 : -2) : 0,
+        moveSpeedY: isMoving ? (Math.random() > 0.5 ? 1.5 : -1.5) : 0, // Slower moving pipes
         initialGapTop: gapTop
       });
 
-      // Chance to spawn Shield inside the gap (Precision Reward)
-      if (Math.random() > 0.9) {
+      // Chance to spawn Shield inside the pipe gap
+      // Reduced chance to 5% (was 10%)
+      if (Math.random() > 0.95) {
         collectiblesRef.current.push({
           id: Math.random(),
-          x: canvas.width + OBSTACLE_WIDTH / 2 - 10, // Center in pipe width
-          y: gapTop + gapSize / 2, // Center in gap
+          x: canvas.width + OBSTACLE_WIDTH / 2, // Centered in pipe
+          y: gapTop + gapSize / 2, 
           radius: 12,
           type: CollectibleType.SHIELD,
           collected: false
         });
       }
-    } else if (frameCountRef.current % 300 === 0 && Math.random() > 0.6) {
-      // Random open-air spawn between pipes
-      collectiblesRef.current.push({
-        id: Math.random(),
-        x: canvas.width,
-        y: Math.random() * (canvas.height - 100) + 50,
-        radius: 12,
-        type: CollectibleType.SHIELD,
-        collected: false
-      });
-    }
+    } 
+    
+    // REMOVED: Random open-air spawn between pipes
 
     // Update Obstacles
     obstaclesRef.current.forEach(obs => {
@@ -232,7 +254,9 @@ export const GameEngine: React.FC = () => {
       // Dynamic Movement
       if (obs.isMoving) {
         obs.gapTop += obs.moveSpeedY;
-        if (obs.gapTop < 50 || obs.gapTop + obs.gapSize > canvas.height - 50) {
+        // Keep moving pipes within reasonable bounds so they don't close the gap against edges
+        const safePadding = 50;
+        if (obs.gapTop < safePadding || obs.gapTop + obs.gapSize > canvas.height - safePadding) {
           obs.moveSpeedY *= -1;
         }
       }
