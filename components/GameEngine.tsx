@@ -485,8 +485,9 @@ export const GameEngine: React.FC = () => {
        ctx.scale(hitScale, hitScale);
     }
 
+    const now = Date.now();
     // Draw Shield if active
-    if (Date.now() < p.invincibleUntil) {
+    if (now < p.invincibleUntil) {
       ctx.shadowBlur = 10;
       ctx.shadowColor = '#22d3ee';
       ctx.strokeStyle = `rgba(34, 211, 238, ${Math.abs(Math.sin(frameCountRef.current * 0.2)) + 0.5})`;
@@ -494,7 +495,34 @@ export const GameEngine: React.FC = () => {
       ctx.beginPath();
       ctx.arc(0, 0, p.radius + 10, 0, Math.PI * 2);
       ctx.stroke();
-      // Reset shadow for player
+
+      // Shield Duration Bar
+      const remaining = p.invincibleUntil - now;
+      const pct = Math.max(0, remaining / SHIELD_DURATION);
+      
+      // We need to keep the bar horizontal, so undo rotation
+      ctx.save();
+      ctx.rotate(-p.rotation); 
+
+      const barW = 40;
+      const barH = 4;
+      const barX = -barW / 2;
+      const barY = -p.radius - 25;
+
+      // Reset shadow for bar
+      ctx.shadowBlur = 0;
+      
+      // Bar Background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillRect(barX, barY, barW, barH);
+      
+      // Bar Fill
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(barX, barY, barW * pct, barH);
+      
+      ctx.restore(); // Restore rotation context
+
+      // Reset shadow for player body
       ctx.shadowBlur = 20;
       ctx.shadowColor = config.color;
     } else {
