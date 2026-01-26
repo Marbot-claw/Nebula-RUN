@@ -11,6 +11,10 @@ export const GameEngine: React.FC = () => {
   const scoreRef = useRef<number>(0);
   const shakeRef = useRef<number>(0);
   
+  // Time Step Refs
+  const lastTimeRef = useRef<number>(0);
+  const accumulatorRef = useRef<number>(0);
+  
   // Game State
   const [gameState, setGameState] = useState<GameState>(GameState.START);
   const [score, setScore] = useState(0);
@@ -54,6 +58,11 @@ export const GameEngine: React.FC = () => {
     frameCountRef.current = 0;
     scoreRef.current = 0;
     shakeRef.current = 0;
+    
+    // Reset time accumulators slightly to avoid large jumps on restart
+    lastTimeRef.current = 0;
+    accumulatorRef.current = 0;
+
     setScore(0);
     setCurrentStage(EvolutionStage.PROTO);
     // setDebrief("");
@@ -557,15 +566,46 @@ export const GameEngine: React.FC = () => {
     ctx.restore(); // End Global Shake Transform
   };
 
-  const loop = useCallback(() => {
+  const loop = useCallback((timestamp: number) => {
     const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        updatePhysics(canvas);
-        draw(ctx, canvas);
-      }
+    if (!canvas) return;
+
+    // Initialize lastTimeRef if it's 0 (first frame)
+    if (lastTimeRef.current === 0) {
+      lastTimeRef.current = timestamp;
     }
+
+    const deltaTime = timestamp - lastTimeRef.current;
+    lastTimeRef.current = timestamp;
+    
+    // Cap delta time to 100ms to prevent huge jumps (e.g. after tab switching)
+    // This prevents the "spiral of death" where the physics tries to catch up too much
+    const safeDelta = Math.min(deltaTime, 100);
+    
+    accumulatorRef.current += safeDelta;
+    
+    // Fixed Time Step: 60 updates per second (16.66ms)
+    const FIXED_STEP = 1000 / 60; 
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+        // Update Physics in fixed steps
+        // This ensures the game runs at the same speed on 60Hz and 120Hz screens
+        let updates = 0;
+        while (accumulatorRef.current >= FIXED_STEP) {
+            updatePhysics(canvas);
+            accumulatorRef.current -= FIXED_STEP;
+            updates++;
+            // Safety break to prevent freeze if physics is too slow or accumulator gets huge
+            if (updates > 10) {
+               accumulatorRef.current = 0;
+               break;
+            }
+        }
+        
+        draw(ctx, canvas);
+    }
+    
     requestRef.current = requestAnimationFrame(loop);
   }, [gameState]);
 
@@ -583,6 +623,9 @@ export const GameEngine: React.FC = () => {
     if (gameState === GameState.START) {
       initAudio(); // Unlock audio context on first interaction
       setGameState(GameState.PLAYING);
+      // Reset timer on start to avoid initial jump
+      lastTimeRef.current = performance.now();
+      accumulatorRef.current = 0;
     }
     
     playJumpSound();
@@ -703,6 +746,9 @@ export const GameEngine: React.FC = () => {
                    resetGame();
                    initAudio();
                    setGameState(GameState.PLAYING);
+                   // Reset time logic to avoid jump
+                   lastTimeRef.current = performance.now();
+                   accumulatorRef.current = 0;
                 }}
                 className="mt-8 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-transform active:scale-95 flex items-center justify-center gap-2 mx-auto"
               >
@@ -755,6 +801,8 @@ export const GameEngine: React.FC = () => {
                   onClick={() => {
                     resetGame();
                     setGameState(GameState.PLAYING);
+                    lastTimeRef.current = performance.now();
+                    accumulatorRef.current = 0;
                   }}
                   className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
