@@ -7,7 +7,7 @@ import { initAudio, playJumpSound, playScoreSound, playCrashSound, playEvolveSou
 
 export const GameEngine: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(0);
   const scoreRef = useRef<number>(0);
   const shakeRef = useRef<number>(0);
   
@@ -19,6 +19,7 @@ export const GameEngine: React.FC = () => {
   const [isDebriefLoading, setIsDebriefLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<EvolutionStage>(EvolutionStage.PROTO);
   const [isMuted, setIsMuted] = useState(getMuteState());
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // Mutable Game Objects (Refs for performance in loop)
   const playerRef = useRef<Player>({
@@ -37,8 +38,10 @@ export const GameEngine: React.FC = () => {
 
   // Initialize/Reset Game
   const resetGame = () => {
+    const h = canvasRef.current?.height || 800;
+
     playerRef.current = {
-      y: window.innerHeight / 2,
+      y: h / 2,
       velocity: 0,
       radius: EVO_CONFIG[EvolutionStage.PROTO].radius,
       rotation: 0,
@@ -81,7 +84,8 @@ export const GameEngine: React.FC = () => {
     }
     
     // Trigger Explosion
-    spawnParticles(window.innerWidth / 3, playerRef.current.y, '#ff0000', 30);
+    const w = canvasRef.current?.width || 0;
+    spawnParticles(w / 3, playerRef.current.y, '#ff0000', 30);
 
     // Call AI
     setIsDebriefLoading(true);
@@ -586,9 +590,10 @@ export const GameEngine: React.FC = () => {
     const config = EVO_CONFIG[playerRef.current.stage];
     playerRef.current.velocity = JUMP_STRENGTH * config.jumpMod;
     
+    const w = canvasRef.current?.width || 0;
     // Spawn simple jump particles
     if (playerRef.current.stage === EvolutionStage.PROTO) {
-      spawnParticles(window.innerWidth / 3, playerRef.current.y + 10, '#ffffff', 3);
+      spawnParticles(w / 3, playerRef.current.y + 10, '#ffffff', 3);
     }
   }, [gameState]);
 
@@ -605,9 +610,18 @@ export const GameEngine: React.FC = () => {
   // Window Resize
   useEffect(() => {
     const handleResize = () => {
+      // Mobile-ish dimensions
+      const MAX_W = 480;
+      const MAX_H = 850; 
+      
+      const width = Math.min(window.innerWidth, MAX_W);
+      const height = Math.min(window.innerHeight, MAX_H);
+      
+      setDimensions({ width, height });
+
       if (canvasRef.current) {
-        canvasRef.current.width = window.innerWidth;
-        canvasRef.current.height = window.innerHeight;
+        canvasRef.current.width = width;
+        canvasRef.current.height = height;
       }
     };
     window.addEventListener('resize', handleResize);
@@ -624,145 +638,150 @@ export const GameEngine: React.FC = () => {
 
   // UI Components
   return (
-    <div className="relative w-full h-screen overflow-hidden font-sans">
-      <canvas 
-        ref={canvasRef} 
-        className="block w-full h-full cursor-pointer"
-        onPointerDown={handleJump}
-      />
-
-      {/* HUD */}
-      <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none">
-        <div className="bg-black/40 backdrop-blur-md px-8 py-2 rounded-full border border-white/10 text-white text-4xl font-bold shadow-lg flex items-center gap-4">
-          <span>{score}</span>
-        </div>
-      </div>
-
-      <div className="absolute top-6 right-6 pointer-events-none">
-        <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-medium">
-           Evo Stage: <span style={{ color: EVO_CONFIG[currentStage].color }}>{EVO_CONFIG[currentStage].name}</span>
-        </div>
-      </div>
-
-      {/* Mute Button */}
-      <button 
-        onClick={handleMuteToggle}
-        className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 z-50 transition-colors"
+    <div className="w-full h-screen bg-slate-950 flex items-center justify-center overflow-hidden font-sans">
+      <div 
+        className="relative overflow-hidden shadow-2xl bg-slate-900 border-x-2 border-slate-800"
+        style={{ width: dimensions.width, height: dimensions.height }}
       >
-        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-      </button>
+        <canvas 
+          ref={canvasRef} 
+          className="block w-full h-full cursor-pointer"
+          onPointerDown={handleJump}
+        />
 
-      {/* Start Screen */}
-      {gameState === GameState.START && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="text-center p-8 max-w-md">
-            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-4 tracking-tight">
-              NEBULA RUN
-            </h1>
-            <p className="text-gray-300 mb-8 text-lg">
-              Tap or Space to fly. Evolve your form to survive.
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span>Stage 1: Heavy, Slow</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
-                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                <span>Stage 2: Balanced, Fast</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
-                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                <span>Stage 3: Hyper-speed, Twitchy</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
-                 <div className="w-3 h-3 rounded-full border border-cyan-400"></div>
-                 <span className="text-cyan-200">Shield: Invincibility</span>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                 resetGame();
-                 initAudio();
-                 setGameState(GameState.PLAYING);
-              }}
-              className="mt-8 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-transform active:scale-95 flex items-center justify-center gap-2 mx-auto"
-            >
-              <Play size={20} fill="black" /> START MISSION
-            </button>
+        {/* HUD */}
+        <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="bg-black/40 backdrop-blur-md px-8 py-2 rounded-full border border-white/10 text-white text-4xl font-bold shadow-lg flex items-center gap-4">
+            <span>{score}</span>
           </div>
         </div>
-      )}
 
-      {/* Game Over Screen */}
-      {gameState === GameState.GAME_OVER && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
-          <div className="bg-[#0f172a] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500"></div>
+        <div className="absolute top-6 right-6 pointer-events-none">
+          <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-medium">
+             Evo: <span style={{ color: EVO_CONFIG[currentStage].color }}>{EVO_CONFIG[currentStage].name}</span>
+          </div>
+        </div>
 
-            <h2 className="text-3xl font-bold text-white mb-2">CRITICAL FAILURE</h2>
-            
-            <div className="flex justify-center gap-8 my-6">
-              <div className="text-center">
-                <p className="text-xs text-gray-500 uppercase tracking-widest">Score</p>
-                <p className="text-4xl font-mono text-white">{score}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-500 uppercase tracking-widest">Best</p>
-                <div className="flex items-center justify-center gap-1 text-4xl font-mono text-yellow-500">
-                  {score > highScore && score > 0 && <Trophy size={24} />}
-                  {Math.max(score, highScore)}
+        {/* Mute Button */}
+        <button 
+          onClick={handleMuteToggle}
+          className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-gray-300 hover:bg-white/10 z-50 transition-colors"
+        >
+          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
+
+        {/* Start Screen */}
+        {gameState === GameState.START && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="text-center p-8 max-w-md w-full">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-4 tracking-tight">
+                NEBULA RUN
+              </h1>
+              <p className="text-gray-300 mb-8 text-lg">
+                Tap or Space to fly. Evolve your form to survive.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span>Stage 1: Heavy, Slow</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                  <span>Stage 2: Balanced, Fast</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
+                  <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                  <span>Stage 3: Hyper-speed, Twitchy</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">
+                   <div className="w-3 h-3 rounded-full border border-cyan-400"></div>
+                   <span className="text-cyan-200">Shield: Invincibility</span>
                 </div>
               </div>
+              <button 
+                onClick={() => {
+                   resetGame();
+                   initAudio();
+                   setGameState(GameState.PLAYING);
+                }}
+                className="mt-8 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-transform active:scale-95 flex items-center justify-center gap-2 mx-auto"
+              >
+                <Play size={20} fill="black" /> START MISSION
+              </button>
             </div>
+          </div>
+        )}
 
-            <div className="bg-black/30 rounded-lg p-4 mb-8 text-left border border-white/5 min-h-[100px]">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap size={14} className="text-purple-400" />
-                <span className="text-xs font-bold text-purple-400 uppercase">AI Mission Debrief</span>
+        {/* Game Over Screen */}
+        {gameState === GameState.GAME_OVER && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+            <div className="bg-[#0f172a] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500"></div>
+
+              <h2 className="text-3xl font-bold text-white mb-2">CRITICAL FAILURE</h2>
+              
+              <div className="flex justify-center gap-8 my-6">
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-widest">Score</p>
+                  <p className="text-4xl font-mono text-white">{score}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-widest">Best</p>
+                  <div className="flex items-center justify-center gap-1 text-4xl font-mono text-yellow-500">
+                    {score > highScore && score > 0 && <Trophy size={24} />}
+                    {Math.max(score, highScore)}
+                  </div>
+                </div>
               </div>
-              {isDebriefLoading ? (
-                 <div className="flex gap-1 items-center h-12 text-gray-500 text-sm">
-                   <span className="animate-pulse">Analyzing black box data...</span>
+
+              <div className="bg-black/30 rounded-lg p-4 mb-8 text-left border border-white/5 min-h-[100px]">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap size={14} className="text-purple-400" />
+                  <span className="text-xs font-bold text-purple-400 uppercase">AI Mission Debrief</span>
+                </div>
+                {isDebriefLoading ? (
+                   <div className="flex gap-1 items-center h-12 text-gray-500 text-sm">
+                     <span className="animate-pulse">Analyzing black box data...</span>
+                   </div>
+                ) : (
+                  <p className="text-gray-300 text-sm italic leading-relaxed">
+                    "{debrief || "System malfunction. No data."}"
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-4 w-full">
+                <button 
+                  onClick={() => {
+                    resetGame();
+                    setGameState(GameState.PLAYING);
+                  }}
+                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <RotateCcw size={18} /> RETRY
+                </button>
+
+                <button 
+                  onClick={() => {
+                    resetGame();
+                    setGameState(GameState.START);
+                  }}
+                  className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Home size={18} /> MENU
+                </button>
+              </div>
+              
+              {!process.env.API_KEY && (
+                 <div className="mt-4 flex items-center justify-center gap-2 text-xs text-yellow-600/80">
+                   <AlertTriangle size={12} />
+                   <span>Add API_KEY to env for AI Debriefs</span>
                  </div>
-              ) : (
-                <p className="text-gray-300 text-sm italic leading-relaxed">
-                  "{debrief || "System malfunction. No data."}"
-                </p>
               )}
             </div>
-
-            <div className="flex gap-4 w-full">
-              <button 
-                onClick={() => {
-                  resetGame();
-                  setGameState(GameState.PLAYING);
-                }}
-                className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <RotateCcw size={18} /> RETRY
-              </button>
-
-              <button 
-                onClick={() => {
-                  resetGame();
-                  setGameState(GameState.START);
-                }}
-                className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Home size={18} /> MENU
-              </button>
-            </div>
-            
-            {!process.env.API_KEY && (
-               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-yellow-600/80">
-                 <AlertTriangle size={12} />
-                 <span>Add API_KEY to env for AI Debriefs</span>
-               </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
