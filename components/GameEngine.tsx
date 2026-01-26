@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Play, Zap, Trophy, AlertTriangle, Volume2, VolumeX, Home, RotateCcw } from 'lucide-react';
 import { GameState, EvolutionStage, Player, Obstacle, Particle, Vector, Collectible, CollectibleType } from '../types';
 import { GRAVITY, JUMP_STRENGTH, GAME_SPEED_BASE, OBSTACLE_SPAWN_RATE, OBSTACLE_WIDTH, EVO_CONFIG, SHIELD_DURATION } from '../constants';
-import { generateMissionDebrief } from '../services/geminiService';
+// import { generateMissionDebrief } from '../services/geminiService';
 import { initAudio, playJumpSound, playScoreSound, playCrashSound, playEvolveSound, playCollectSound, toggleMute, getMuteState } from '../services/audioService';
 
 export const GameEngine: React.FC = () => {
@@ -15,8 +15,8 @@ export const GameEngine: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.START);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
-  const [debrief, setDebrief] = useState<string>("");
-  const [isDebriefLoading, setIsDebriefLoading] = useState(false);
+  // const [debrief, setDebrief] = useState<string>("");
+  // const [isDebriefLoading, setIsDebriefLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<EvolutionStage>(EvolutionStage.PROTO);
   const [isMuted, setIsMuted] = useState(getMuteState());
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -56,7 +56,7 @@ export const GameEngine: React.FC = () => {
     shakeRef.current = 0;
     setScore(0);
     setCurrentStage(EvolutionStage.PROTO);
-    setDebrief("");
+    // setDebrief("");
   };
 
   const spawnParticles = (x: number, y: number, color: string, count: number = 5) => {
@@ -88,10 +88,10 @@ export const GameEngine: React.FC = () => {
     spawnParticles(w / 3, playerRef.current.y, '#ff0000', 30);
 
     // Call AI
-    setIsDebriefLoading(true);
-    const message = await generateMissionDebrief(scoreRef.current, playerRef.current.stage, cause);
-    setDebrief(message);
-    setIsDebriefLoading(false);
+    // setIsDebriefLoading(true);
+    // const message = await generateMissionDebrief(scoreRef.current, playerRef.current.stage, cause);
+    // setDebrief(message);
+    // setIsDebriefLoading(false);
   };
 
   const updatePhysics = (canvas: HTMLCanvasElement) => {
@@ -734,7 +734,7 @@ export const GameEngine: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-black/30 rounded-lg p-4 mb-8 text-left border border-white/5 min-h-[100px]">
+              {/* <div className="bg-black/30 rounded-lg p-4 mb-8 text-left border border-white/5 min-h-[100px]">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap size={14} className="text-purple-400" />
                   <span className="text-xs font-bold text-purple-400 uppercase">AI Mission Debrief</span>
@@ -748,7 +748,7 @@ export const GameEngine: React.FC = () => {
                     "{debrief || "System malfunction. No data."}"
                   </p>
                 )}
-              </div>
+              </div> */}
 
               <div className="flex gap-4 w-full">
                 <button 
@@ -772,12 +772,12 @@ export const GameEngine: React.FC = () => {
                 </button>
               </div>
               
-              {!process.env.API_KEY && (
+              {/* {!process.env.API_KEY && (
                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-yellow-600/80">
                    <AlertTriangle size={12} />
                    <span>Add API_KEY to env for AI Debriefs</span>
                  </div>
-              )}
+              )} */}
             </div>
           </div>
         )}
